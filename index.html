@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ngedate Yuk!</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+        }
+        
+        /* Animasi untuk Hati yang berjatuhan */
+        .heart {
+            position: fixed;
+            top: -10vh;
+            font-size: 1.5rem;
+            animation: fall linear forwards;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        @keyframes fall {
+            to {
+                transform: translateY(110vh) rotate(360deg);
+            }
+        }
+        
+        /* Efek getar untuk validasi */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            50% { transform: translateX(5px); }
+            75% { transform: translateX(-5px); }
+        }
+        .shake-animation {
+            animation: shake 0.4s ease-in-out;
+        }
+
+        /* Animasi Ledakan Hati (Burst) saat klik "Mau" */
+        .heart-burst {
+            position: fixed;
+            font-size: 2rem;
+            z-index: 100;
+            pointer-events: none;
+            animation: burst 1s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
+            /* Pusatkan titik tengah elemen */
+            transform: translate(-50%, -50%); 
+        }
+
+        @keyframes burst {
+            0% {
+                transform: translate(-50%, -50%) scale(0.5);
+                opacity: 1;
+            }
+            100% {
+                /* Menyebar berdasarkan jarak (tx, ty) yang di-generate JS */
+                transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(1.5) rotate(15deg);
+                opacity: 0;
+            }
+        }
+
+        /* Sembunyikan scrollbar untuk tampilan pilihan tempat */
+        .hide-scroll::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scroll {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-pink-200 to-pink-400 min-h-screen flex items-center justify-center p-4 relative">
+
+    <!-- Container untuk hati yang jatuh -->
+    <div id="hearts-container" class="absolute inset-0 overflow-hidden pointer-events-none"></div>
+
+    <div class="max-w-md w-full bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-8 relative z-10 text-center border-4 border-white/50">
+        
+        <!-- STEP 1: Halaman Ajakan Pertama -->
+        <div id="step-1" class="flex flex-col items-center transition-all duration-500">
+            <h1 class="text-3xl font-extrabold text-gray-800 mb-6 drop-shadow-sm">
+                Hai Ulann... <br> <span class="text-pink-500 text-4xl">Mau main bareng ga?</span> 😁
+            </h1>
+            
+            <img src="awalan kucing.gif" alt="Cute begging cat" class="w-48 h-48 object-cover rounded-2xl mb-8 shadow-md">
+            
+            <div class="flex flex-wrap gap-4 items-center justify-center w-full relative min-h-[5rem]">
+                <button id="btn-yes" class="bg-pink-500 hover:bg-pink-600 text-white font-bold py-3 px-8 rounded-full shadow-lg shadow-pink-500/40 transition-all duration-300 text-lg z-20">
+                    Mau! 🥰
+                </button>
+                <button id="btn-no" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 px-8 rounded-full shadow-md transition-all duration-300 text-lg relative z-10">
+                    Nggak
+                </button>
+            </div>
+        </div>
+
+        <!-- STEP 1.5: Halaman Transisi "YAY!" -->
+        <div id="step-yay" class="hidden opacity-0 flex-col items-center transition-all duration-500">
+            <div class="border-4 border-pink-200 rounded-2xl p-2 mb-4 bg-white shadow-sm">
+                <img src="awalan kucing 2.gif" alt="Yay bear" class="w-48 h-48 object-cover rounded-xl">
+            </div>
+            
+            <h1 class="text-5xl font-black text-pink-500 mb-2 tracking-widest drop-shadow-md uppercase">Yayy!</h1>
+            <p class="text-gray-600 font-bold mb-8 text-lg">Seneng banget kamu bilang iya 🥰</p>
+            
+            <button id="btn-continue" class="bg-white border-2 border-pink-500 text-pink-600 hover:bg-pink-50 font-bold py-2 px-6 rounded-lg shadow-sm transition-all duration-300 text-sm tracking-widest uppercase group">
+                Lanjut <span class="inline-block group-hover:translate-x-1 transition-transform">➔</span>
+            </button>
+        </div>
+
+        <!-- STEP 2: Pilih Tanggal -->
+        <div id="step-date" class="hidden opacity-0 flex-col items-center transition-all duration-500">
+            <h2 class="text-3xl font-bold text-gray-800 mb-2">Pilih Waktu 🗓️</h2>
+            <p class="text-gray-600 mb-6 font-medium">Kapan nih kita main?</p>
+            
+            <div class="w-full mb-6 text-left">
+                <input type="date" id="date-picker" class="w-full p-3 rounded-xl border-2 border-pink-200 focus:border-pink-500 outline-none text-gray-700 font-medium transition-colors bg-white/80">
+            </div>
+
+            <p id="error-date" class="text-red-500 text-sm font-semibold mb-4 hidden bg-red-50 p-2 rounded-lg w-full">⚠️ tanggalnya isii!</p>
+            
+            <button id="btn-next-activity" class="bg-pink-500 hover:bg-pink-600 text-white font-bold py-3 px-8 rounded-full shadow-lg shadow-pink-500/40 transition-all w-full text-lg mt-2">
+                Lanjut Pilih Aktivitas ➔
+            </button>
+        </div>
+
+        <!-- STEP 2.5: Pilih Aktivitas -->
+        <div id="step-activity" class="hidden opacity-0 flex-col items-center transition-all duration-500">
+            <h2 class="text-3xl font-bold text-gray-800 mb-2">Pilih Aktivitas 🎡</h2>
+            <p class="text-gray-600 mb-6 font-medium">Kita ngapain aja nih? (Bisa >1)</p>
+            
+            <div class="w-full mb-6 text-left">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <label class="flex items-center p-3 border-2 border-pink-100 rounded-xl cursor-pointer hover:bg-pink-50 transition-colors bg-white/80 group">
+                        <input type="checkbox" name="activity" value="Ngopi" class="w-5 h-5 accent-pink-500 rounded cursor-pointer">
+                        <span class="ml-3 text-gray-700 font-medium group-hover:text-pink-600 transition-colors">Ngopi ☕</span>
+                    </label>
+                    <label class="flex items-center p-3 border-2 border-pink-100 rounded-xl cursor-pointer hover:bg-pink-50 transition-colors bg-white/80 group">
+                        <input type="checkbox" name="activity" value="Nge-Gelato" class="w-5 h-5 accent-pink-500 rounded cursor-pointer">
+                        <span class="ml-3 text-gray-700 font-medium group-hover:text-pink-600 transition-colors">Nge-Gelato 🍨</span>
+                    </label>
+                    <label class="flex items-center p-3 border-2 border-pink-100 rounded-xl cursor-pointer hover:bg-pink-50 transition-colors bg-white/80 group">
+                        <input type="checkbox" name="activity" value="Nonton Bioskop" class="w-5 h-5 accent-pink-500 rounded cursor-pointer">
+                        <span class="ml-3 text-gray-700 font-medium group-hover:text-pink-600 transition-colors">Nonton 🎥</span>
+                    </label>
+                    <div class="flex items-center p-1 px-3 border-2 border-pink-100 rounded-xl bg-white/80 focus-within:border-pink-500 focus-within:ring-2 focus-within:ring-pink-200 transition-all">
+                        <input type="text" id="custom-activity" placeholder="Atau tulis idemu.. ✨" class="w-full py-2 bg-transparent outline-none text-gray-700 font-medium placeholder-gray-400 text-sm">
+                    </div>
+                </div>
+
+                <!-- Sub-opsi Tempat (Muncul dinamis jika diceklis) -->
+                <div id="places-container" class="mt-4 flex flex-col gap-3 w-full">
+                    
+                    <!-- Tempat Ngopi -->
+                    <div id="sub-ngopi" class="hidden p-3 bg-white/80 rounded-xl border border-pink-100 transition-all">
+                        <p class="text-sm font-bold text-gray-700 mb-2">Pilih tempat Ngopi-nya: ☕</p>
+                        <div class="flex gap-3 overflow-x-auto pb-1 hide-scroll">
+                            <label class="flex-shrink-0 cursor-pointer">
+                                <input type="radio" name="place-ngopi" value="Kopi Nako" class="peer sr-only">
+                                <div class="w-28 rounded-xl border-2 border-transparent peer-checked:border-pink-500 peer-checked:bg-pink-50 transition-all overflow-hidden bg-white shadow-sm">
+                                    <img src="ngopi 1.png" class="w-full h-16 object-cover">
+                                    <div class="p-2 text-xs font-bold text-center text-gray-700">Kopi Nako</div>
+                                </div>
+                            </label>
+                            <label class="flex-shrink-0 cursor-pointer">
+                                <input type="radio" name="place-ngopi" value="Alana Coffee" class="peer sr-only">
+                                <div class="w-28 rounded-xl border-2 border-transparent peer-checked:border-pink-500 peer-checked:bg-pink-50 transition-all overflow-hidden bg-white shadow-sm">
+                                    <img src="ngopi 2.png" class="w-full h-16 object-cover">
+                                    <div class="p-2 text-xs font-bold text-center text-gray-700">Alana Coffee</div>
+                                </div>
+                            </label>
+                            <label class="flex-shrink-0 cursor-pointer">
+                                <input type="radio" name="place-ngopi" value="Plumeria Cafe" class="peer sr-only">
+                                <div class="w-28 rounded-xl border-2 border-transparent peer-checked:border-pink-500 peer-checked:bg-pink-50 transition-all overflow-hidden bg-white shadow-sm">
+                                    <img src="ngopi 3.png" class="w-full h-16 object-cover">
+                                    <div class="p-2 text-xs font-bold text-center text-gray-700">Plumeria Cafe</div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Tempat Gelato -->
+                    <div id="sub-gelato" class="hidden p-3 bg-white/80 rounded-xl border border-pink-100 transition-all">
+                        <p class="text-sm font-bold text-gray-700 mb-2">Pilih Gelato di mana: 🍨</p>
+                        <div class="flex gap-3 overflow-x-auto pb-1 hide-scroll">
+                            <label class="flex-shrink-0 cursor-pointer">
+                                <input type="radio" name="place-gelato" value="Tianlala" class="peer sr-only">
+                                <div class="w-28 rounded-xl border-2 border-transparent peer-checked:border-pink-500 peer-checked:bg-pink-50 transition-all overflow-hidden bg-white shadow-sm">
+                                    <img src="es krim 1.png" class="w-full h-16 object-cover">
+                                    <div class="p-2 text-xs font-bold text-center text-gray-700">Tianlala</div>
+                                </div>
+                            </label>
+                            <label class="flex-shrink-0 cursor-pointer">
+                                <input type="radio" name="place-gelato" value="Misnow Jatinangor" class="peer sr-only">
+                                <div class="w-28 rounded-xl border-2 border-transparent peer-checked:border-pink-500 peer-checked:bg-pink-50 transition-all overflow-hidden bg-white shadow-sm">
+                                    <img src="es krim 2.png" class="w-full h-16 object-cover">
+                                    <div class="p-2 text-xs font-bold text-center text-gray-700">Misnow Jatinangor</div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Tempat Nonton -->
+                    <div id="sub-nonton" class="hidden p-3 bg-white/80 rounded-xl border border-pink-100 transition-all">
+                        <p class="text-sm font-bold text-gray-700 mb-2">Nonton di mana: 🎥</p>
+                        <div class="flex gap-3 overflow-x-auto pb-1 hide-scroll">
+                            <label class="flex-shrink-0 cursor-pointer">
+                                <input type="radio" name="place-nonton" value="Jatos XXI" class="peer sr-only">
+                                <div class="w-28 rounded-xl border-2 border-transparent peer-checked:border-pink-500 peer-checked:bg-pink-50 transition-all overflow-hidden bg-white shadow-sm">
+                                    <img src="bioskop.jpg" class="w-full h-16 object-cover">
+                                    <div class="p-2 text-xs font-bold text-center text-gray-700">Jatos XXI</div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <p id="error-activity" class="text-red-500 text-sm font-semibold mb-4 hidden bg-red-50 p-2 rounded-lg w-full">⚠️ Pilih minimal 1 aktivitas dong!</p>
+            
+            <button id="btn-confirm" class="bg-pink-500 hover:bg-pink-600 text-white font-bold py-3 px-8 rounded-full shadow-lg shadow-pink-500/40 transition-all w-full text-lg mt-2">
+                Kirim Rencana! 🚀
+            </button>
+        </div>
+
+        <div id="step-3" class="hidden opacity-0 flex-col items-center transition-all duration-500">
+            <h2 class="text-3xl font-extrabold text-pink-600 mb-4 drop-shadow-sm">Asikkk! Sampai Jumpa Nanti! ❤️</h2>
+            <img src="awalan 3.gif" alt="Happy cat" class="w-48 h-48 object-cover rounded-2xl mb-6 shadow-md border-4 border-pink-200">
+            
+            <div class="bg-pink-50 rounded-2xl p-5 w-full text-left border-2 border-pink-200 shadow-inner mb-6">
+                <p class="text-gray-600 text-sm font-bold uppercase tracking-wider mb-2">Rangkuman Planning Kita:</p>
+                <div id="final-summary" class="text-gray-800 leading-relaxed font-medium">
+                    <!-- Teks dari JS akan masuk kesini -->
+                </div>
+            </div>
+            
+            <button id="btn-send-wa" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-8 rounded-full shadow-lg shadow-green-500/40 transition-all w-full text-lg flex items-center justify-center gap-2">
+                <span>Kirim ke WhatsApp Aku!</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c-.003 1.396.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c.003-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/>
+                </svg>
+            </button>
+            <p class="mt-4 text-sm text-gray-500 font-medium text-center">Tinggal satu langkah lagi nih, klik tombol di atas ya! ✨</p>
+        </div>
+
+    </div>
+
+    <!-- Modal Pesan Mengambang di Atas -->
+    <div id="secret-modal" class="fixed top-6 left-0 right-0 flex justify-center z-50 pointer-events-none px-4 transition-all duration-500 ease-out transform -translate-y-32 opacity-0">
+        <div class="bg-white/95 backdrop-blur-md rounded-3xl shadow-[0_20px_50px_-12px_rgba(236,72,153,0.5)] border-2 border-pink-300 p-6 max-w-sm w-full text-center pointer-events-auto" id="secret-card">
+            
+            <!-- Tampilan awal: Amplop -->
+            <div id="secret-closed" class="flex flex-col items-center">
+                <div class="text-5xl mb-3 animate-bounce">💌</div>
+                <h3 class="text-lg font-bold text-gray-800 mb-1">Ada pesan rahasia nih!</h3>
+                <p class="text-gray-600 mb-4 text-sm font-medium">Coba buka dulu deh...</p>
+                <button id="btn-open-secret" class="bg-pink-500 hover:bg-pink-600 text-white font-bold py-2 px-6 rounded-full shadow-lg transition-all w-full text-sm">
+                    Buka Pesan 🔓
+                </button>
+            </div>
+
+            <!-- Tampilan isi pesan -->
+            <div id="secret-opened" class="hidden flex-col items-center">
+                <div class="text-5xl mb-2">🐈</div>
+                <h3 class="text-lg font-extrabold text-pink-500 mb-2 font-serif italic">"I can't wait to see you!"</h3>
+                <p class="text-gray-700 mb-4 font-medium leading-relaxed text-xs md:text-sm">Makasih ya udah nyempetin waktunya. Nanti hari-H nya aku kabarin lagi, kamu tinggal siap-siap aja nanti dijemputt yaa👋</p>
+                <button id="btn-close-secret" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-6 rounded-full transition-all text-sm w-full">
+                    Tutup Pesan ❌
+                </button>
+            </div>
+            
+        </div>
+    </div>
+
+    <script>
+        // Efek Hati Jatuh (Background)
+        function createHeart() {
+            const heart = document.createElement('div');
+            heart.classList.add('heart');
+            heart.innerHTML = ['💖', '💕', '💗', '💓', '🌸'][Math.floor(Math.random() * 5)];
+            heart.style.left = Math.random() * 100 + 'vw';
+            heart.style.animationDuration = Math.random() * 3 + 4 + 's';
+            document.getElementById('hearts-container').appendChild(heart);
+            setTimeout(() => { heart.remove(); }, 7000);
+        }
+        setInterval(createHeart, 400); // Munculkan hati setiap 400ms
+
+        // Deklarasi Elemen
+        const step1 = document.getElementById('step-1');
+        const stepYay = document.getElementById('step-yay');
+        const stepDate = document.getElementById('step-date');
+        const stepActivity = document.getElementById('step-activity');
+        const step3 = document.getElementById('step-3');
+        
+        const btnYes = document.getElementById('btn-yes');
+        const btnNo = document.getElementById('btn-no');
+        const btnContinue = document.getElementById('btn-continue');
+        const btnNextActivity = document.getElementById('btn-next-activity');
+        const btnConfirm = document.getElementById('btn-confirm');
+        
+        const errorDate = document.getElementById('error-date');
+        const errorActivity = document.getElementById('error-activity');
+        const finalSummary = document.getElementById('final-summary');
+
+        // Deklarasi Elemen Checkbox Aktivitas & Sub-Tempatnya
+        const actNgopi = document.querySelector('input[value="Ngopi"]');
+        const actGelato = document.querySelector('input[value="Nge-Gelato"]');
+        const actNonton = document.querySelector('input[value="Nonton Bioskop"]');
+
+        const subNgopi = document.getElementById('sub-ngopi');
+        const subGelato = document.getElementById('sub-gelato');
+        const subNonton = document.getElementById('sub-nonton');
+
+        // Event Listener untuk memunculkan pilihan gambar tempat saat aktivitas di-ceklis
+        actNgopi.addEventListener('change', (e) => e.target.checked ? subNgopi.classList.remove('hidden') : subNgopi.classList.add('hidden'));
+        actGelato.addEventListener('change', (e) => e.target.checked ? subGelato.classList.remove('hidden') : subGelato.classList.add('hidden'));
+        actNonton.addEventListener('change', (e) => e.target.checked ? subNonton.classList.remove('hidden') : subNonton.classList.add('hidden'));
+
+        const secretModal = document.getElementById('secret-modal');
+        const secretCard = document.getElementById('secret-card');
+        const secretClosed = document.getElementById('secret-closed');
+        const secretOpened = document.getElementById('secret-opened');
+        const btnOpenSecret = document.getElementById('btn-open-secret');
+        const btnCloseSecret = document.getElementById('btn-close-secret');
+
+        let finalWaUrl = ""; 
+
+        // ==========================================
+        // FUNGSI EFEK SUARA (TONE.JS)
+        // ==========================================
+        async function playYaySound() {
+            await Tone.start(); // Wajib dipanggil saat ada interaksi user
+            
+            // Mengubah instrumen menjadi lebih bright (triangle) dengan gaung yg lebih panjang
+            const synth = new Tone.Synth({
+                oscillator: { type: "triangle" },
+                envelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 1 }
+            }).toDestination();
+            
+            const now = Tone.now();
+            // Nada arpeggio melompat girang (kesan magis/sparkle)
+            synth.triggerAttackRelease("C5", "16n", now);
+            synth.triggerAttackRelease("F5", "16n", now + 0.1);
+            synth.triggerAttackRelease("A5", "16n", now + 0.2);
+            synth.triggerAttackRelease("C6", "4n", now + 0.32);
+        }
+
+        async function playSurpriseSound() {
+            await Tone.start();
+            const polySynth = new Tone.PolySynth(Tone.Synth, {
+                oscillator: { type: "triangle" }
+            }).toDestination();
+            const now = Tone.now();
+            // Memainkan nada kord kemenangan (Fanfare/Party)
+            polySynth.triggerAttackRelease(["C5", "E5", "G5"], "8n", now);
+            polySynth.triggerAttackRelease(["D5", "F#5", "A5"], "8n", now + 0.15);
+            polySynth.triggerAttackRelease(["G5", "B5", "D6"], "4n", now + 0.3);
+        }
+
+        async function playNotifySound() {
+            await Tone.start();
+            // Suara ting singkat dan manis untuk notifikasi (gelombang sine agar lembut)
+            const synth = new Tone.Synth({
+                oscillator: { type: "sine" },
+                envelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 1 }
+            }).toDestination();
+            const now = Tone.now();
+            synth.triggerAttackRelease("A5", "16n", now);
+            synth.triggerAttackRelease("E6", "8n", now + 0.1);
+        }
+
+        // Logika Tombol "Nggak" (Menghindar dan ganti teks)
+        const noTexts = [
+            "Yakin nggak?", 
+            "Yang benerrr?", 
+            "Masaaa..", 
+            "Beneran nolak nih?", 
+            "Coba pikir lagi...", 
+            "Please 🥺", 
+            "Gabisa klik ini 😜"
+        ];
+        let noClickCount = 0;
+        let yesSize = 1;
+
+        btnNo.addEventListener('mouseover', moveNoButton);
+        btnNo.addEventListener('click', moveNoButton);
+
+        function moveNoButton() {
+            noClickCount++;
+            
+            // Ganti teks tombol Nggak
+            btnNo.innerText = noTexts[noClickCount % noTexts.length];
+            
+            // Pindahkan tombol Nggak ke posisi acak TAPI di sekitar tempat aslinya saja
+            // Menggunakan transform translate agar tidak keluar dari layar HP (jauh lebih responsif)
+            const moveX = (Math.random() - 0.5) * 160; // Bergeser sumbu X (kiri/kanan) maksimal 80px
+            const moveY = (Math.random() - 0.5) * 160; // Bergeser sumbu Y (atas/bawah) maksimal 80px
+            
+            // Hapus aturan style fixed dan biarkan menggunakan absolute aslinya
+            btnNo.style.position = ''; 
+            btnNo.style.left = '';
+            btnNo.style.top = '';
+            
+            btnNo.style.transform = `translate(${moveX}px, ${moveY}px)`;
+            
+            // Efek membesarkan tombol Yes setiap kali tombol Nggak diklik
+            yesSize += 0.15;
+            btnYes.style.transform = `scale(${yesSize})`;
+        }
+
+        // Logika Tombol "Mau" (Animasi Klik & Pindah ke Step Yay)
+        btnYes.addEventListener('click', () => {
+            playYaySound(); // Mainkan suara Ting-Ting!
+
+            // 1. Dapatkan posisi tengah dari tombol "Mau!"
+            const rect = btnYes.getBoundingClientRect();
+            const x = rect.left + rect.width / 2;
+            const y = rect.top + rect.height / 2;
+
+            // Buat 20 emoji bertebaran
+            for (let i = 0; i < 20; i++) {
+                const heart = document.createElement('div');
+                heart.innerHTML = ['💖', '💕', '💗', '💓', '✨', '🥰'][Math.floor(Math.random() * 6)];
+                heart.classList.add('heart-burst');
+                
+                // Mulai dari titik tengah tombol
+                heart.style.left = x + 'px';
+                heart.style.top = y + 'px';
+                
+                // Hitung arah hamburan acak melingkar (360 derajat)
+                const angle = Math.random() * Math.PI * 2;
+                const distance = Math.random() * 150 + 50; // Menyebar sejauh 50-200px
+                const tx = Math.cos(angle) * distance;
+                const ty = Math.sin(angle) * distance;
+                
+                // Kirim variabel ke CSS
+                heart.style.setProperty('--tx', `${tx}px`);
+                heart.style.setProperty('--ty', `${ty}px`);
+                
+                document.body.appendChild(heart);
+                
+                // Hapus elemen setelah animasi selesai agar tidak menumpuk memori
+                setTimeout(() => heart.remove(), 1000);
+            }
+
+            // 2. Animasi membal (pop) saat tombol Mau diklik
+            btnYes.style.transition = 'transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+            btnYes.style.transform = `scale(${Math.max(0.9, yesSize - 0.1)})`; // Mengecil sedikit untuk efek tekan
+            
+            setTimeout(() => {
+                btnYes.style.transform = `scale(${yesSize + 0.15})`; // Membal membesar
+                
+                setTimeout(() => {
+                    // 3. Lanjut transisi layar setelah animasi tombol selesai
+                    step1.style.opacity = '0';
+                    setTimeout(() => {
+                        step1.classList.remove('flex');
+                        step1.classList.add('hidden');
+                        
+                        stepYay.classList.remove('hidden');
+                        stepYay.classList.add('flex');
+                        
+                        // Trigger reflow & fade in
+                        void stepYay.offsetWidth; 
+                        stepYay.style.opacity = '1';
+                    }, 500);
+                }, 200);
+            }, 100);
+        });
+
+        // Logika Tombol "Lanjut" (Pindah ke Step Date form)
+        btnContinue.addEventListener('click', () => {
+            stepYay.style.opacity = '0';
+            setTimeout(() => {
+                stepYay.classList.remove('flex');
+                stepYay.classList.add('hidden');
+                
+                stepDate.classList.remove('hidden');
+                stepDate.classList.add('flex');
+                
+                // Trigger reflow & fade in
+                void stepDate.offsetWidth; 
+                stepDate.style.opacity = '1';
+            }, 500);
+        });
+
+        // Logika Tombol "Lanjut Pilih Aktivitas" (Validasi Tanggal & Pindah ke Step Activity)
+        btnNextActivity.addEventListener('click', () => {
+            const dateValue = document.getElementById('date-picker').value;
+            
+            if (!dateValue) {
+                errorDate.classList.remove('hidden');
+                stepDate.classList.add('shake-animation');
+                setTimeout(() => stepDate.classList.remove('shake-animation'), 400);
+                return;
+            }
+            
+            errorDate.classList.add('hidden');
+
+            stepDate.style.opacity = '0';
+            setTimeout(() => {
+                stepDate.classList.remove('flex');
+                stepDate.classList.add('hidden');
+                
+                stepActivity.classList.remove('hidden');
+                stepActivity.classList.add('flex');
+                
+                void stepActivity.offsetWidth; 
+                stepActivity.style.opacity = '1';
+            }, 500);
+        });
+
+        // Logika Tombol "Kirim Rencana" (Validasi Aktivitas & Pindah ke Step 3)
+        btnConfirm.addEventListener('click', () => {
+            const dateValue = document.getElementById('date-picker').value;
+            const checkedActivities = document.querySelectorAll('input[name="activity"]:checked');
+            
+            let selectedActivities = [];
+
+            // Cek setiap aktivitas yang dipilih dan ambil data tempatnya jika ada
+            checkedActivities.forEach(cb => {
+                let actName = cb.value;
+                let place = "";
+                
+                // Cari apakah ada gambar tempat yang dipilih (Radio button)
+                if (actName === "Ngopi") {
+                    const selected = document.querySelector('input[name="place-ngopi"]:checked');
+                    if (selected) place = selected.value;
+                } else if (actName === "Nge-Gelato") {
+                    const selected = document.querySelector('input[name="place-gelato"]:checked');
+                    if (selected) place = selected.value;
+                } else if (actName === "Nonton Bioskop") {
+                    const selected = document.querySelector('input[name="place-nonton"]:checked');
+                    if (selected) place = selected.value;
+                }
+
+                // Format penulisan aktivitasnya (Contoh: Ngopi (di Cafe Aesthetic))
+                if (place) {
+                    selectedActivities.push(`${actName} (di ${place})`);
+                } else {
+                    selectedActivities.push(actName);
+                }
+            });
+
+            // Tambahkan input kustom (jika dia ngetik idenya sendiri)
+            const customActivity = document.getElementById('custom-activity').value.trim();
+            if (customActivity) {
+                selectedActivities.push(customActivity);
+            }
+
+            // Cek apakah aktivitas kosong
+            if (selectedActivities.length === 0) {
+                errorActivity.classList.remove('hidden');
+                stepActivity.classList.add('shake-animation');
+                setTimeout(() => stepActivity.classList.remove('shake-animation'), 400);
+                return;
+            }
+            
+            errorActivity.classList.add('hidden');
+
+            playSurpriseSound(); // Mainkan suara terompet kemenangan!
+
+            // --- ANIMASI SURPRISE (CONFETTI) ---
+            const rect = btnConfirm.getBoundingClientRect();
+            const x = rect.left + rect.width / 2;
+            const y = rect.top + rect.height / 2;
+
+            for (let i = 0; i < 30; i++) {
+                const confetti = document.createElement('div');
+                confetti.innerHTML = ['🎉', '🎊', '✨', '🎈', '💖'][Math.floor(Math.random() * 5)];
+                confetti.classList.add('heart-burst');
+                
+                confetti.style.left = x + 'px';
+                confetti.style.top = y + 'px';
+                
+                const angle = Math.random() * Math.PI * 2;
+                const distance = Math.random() * 200 + 50; // Menyebar lebih luas
+                const tx = Math.cos(angle) * distance;
+                const ty = Math.sin(angle) * distance;
+                
+                confetti.style.setProperty('--tx', `${tx}px`);
+                confetti.style.setProperty('--ty', `${ty}px`);
+                
+                document.body.appendChild(confetti);
+                
+                setTimeout(() => confetti.remove(), 1000);
+            }
+
+            // Animasi membal pada tombol Kirim Rencana
+            btnConfirm.style.transition = 'transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+            btnConfirm.style.transform = `scale(0.9)`;
+
+            setTimeout(() => {
+                btnConfirm.style.transform = `scale(1)`;
+                
+                // Format tanggal (Contoh: Sabtu, 24 Agustus 2024)
+                const dateObj = new Date(dateValue);
+                const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+                const formattedDate = dateObj.toLocaleDateString('id-ID', options);
+                
+                // Format aktivitas
+                const activitiesText = selectedActivities.join(', ');
+
+                // ==========================================
+                // FITUR KIRIM KE WHATSAPP
+                // ==========================================
+                // GANTI NOMOR INI dengan nomor WA kamu (gunakan format 62 tanpa + dan angka 0 di depan)
+                // Contoh: Jika nomor 08123456789, tulis 628123456789
+                const nomorWA = "62895391843741"; 
+                
+                const pesanWA = `Halo sayang! %0A%0AAku udah isi rencana kita kayak gini:%0ATanggal: ${formattedDate}%0AAktivitas: ${activitiesText}`;
+                
+                finalWaUrl = `https://wa.me/${nomorWA}?text=${pesanWA}`;
+                
+                // Masukkan hasil ke halaman sukses (Step 3)
+                finalSummary.innerHTML = `
+                    <div class="mb-2">📅 <span class="font-bold text-pink-600">${formattedDate}</span></div>
+                    <div>🎡 <span class="font-bold text-pink-600">${activitiesText}</span></div>
+                `;
+
+                // Transisi ke Step 3 dengan sedikit jeda agar animasi surprise terlihat dulu
+                setTimeout(() => {
+                    stepActivity.style.opacity = '0';
+                    setTimeout(() => {
+                        stepActivity.classList.remove('flex');
+                        stepActivity.classList.add('hidden');
+                        
+                        step3.classList.remove('hidden');
+                        step3.classList.add('flex');
+                        
+                        // Trigger reflow & fade in
+                        void step3.offsetWidth; 
+                        step3.style.opacity = '1';
+
+                        // Memunculkan pesan melayang dari atas
+                        setTimeout(() => {
+                            secretModal.classList.remove('-translate-y-32', 'opacity-0');
+                            secretModal.classList.add('translate-y-0', 'opacity-100');
+                            playNotifySound(); // Panggil suara notifikasi di sini!
+                        }, 1000);
+
+                    }, 500);
+                }, 400); // Jeda 400ms menunggu letupan selesai
+            }, 100);
+        });
+
+        // Logika Tombol "Kirim ke WhatsApp"
+        document.getElementById('btn-send-wa').addEventListener('click', () => {
+            if (finalWaUrl) {
+                window.open(finalWaUrl, '_blank');
+            }
+        });
+
+        // Logika Tombol Buka Pesan Rahasia
+        btnOpenSecret.addEventListener('click', () => {
+            secretClosed.classList.add('hidden');
+            secretClosed.classList.remove('flex');
+            
+            secretOpened.classList.remove('hidden');
+            secretOpened.classList.add('flex');
+            
+            // Efek pop membal saat ganti isi pesan
+            secretCard.style.transform = 'scale(0.95)';
+            setTimeout(() => {
+                secretCard.style.transform = 'scale(1)';
+            }, 100);
+        });
+
+        // Logika Tombol Tutup Pesan Rahasia
+        btnCloseSecret.addEventListener('click', () => {
+            secretModal.classList.remove('translate-y-0', 'opacity-100');
+            secretModal.classList.add('-translate-y-32', 'opacity-0');
+        });
+    </script>
+</body>
+</html>
