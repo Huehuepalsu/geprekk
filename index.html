@@ -117,11 +117,18 @@
             <h2 class="text-3xl font-bold text-gray-800 mb-2">Pilih Waktu 🗓️</h2>
             <p class="text-gray-600 mb-6 font-medium">Kapan nih kita main?</p>
             
-            <div class="w-full mb-6 text-left">
-                <input type="date" id="date-picker" class="w-full p-3 rounded-xl border-2 border-pink-200 focus:border-pink-500 outline-none text-gray-700 font-medium transition-colors bg-white/80">
+            <div class="w-full mb-6 text-left flex gap-3">
+                <div class="flex-[2]">
+                    <label class="text-xs font-bold text-pink-500 ml-1 mb-1 block">Tanggal</label>
+                    <input type="date" id="date-picker" class="w-full p-3 rounded-xl border-2 border-pink-200 focus:border-pink-500 outline-none text-gray-700 font-medium transition-colors bg-white/80">
+                </div>
+                <div class="flex-[1]">
+                    <label class="text-xs font-bold text-pink-500 ml-1 mb-1 block">Jam</label>
+                    <input type="time" id="time-picker" class="w-full p-3 rounded-xl border-2 border-pink-200 focus:border-pink-500 outline-none text-gray-700 font-medium transition-colors bg-white/80">
+                </div>
             </div>
 
-            <p id="error-date" class="text-red-500 text-sm font-semibold mb-4 hidden bg-red-50 p-2 rounded-lg w-full">⚠️ tanggalnya isii!</p>
+            <p id="error-date" class="text-red-500 text-sm font-semibold mb-4 hidden bg-red-50 p-2 rounded-lg w-full">⚠️ tanggal & jamnya isii dong!</p>
             
             <button id="btn-next-activity" class="bg-pink-500 hover:bg-pink-600 text-white font-bold py-3 px-8 rounded-full shadow-lg shadow-pink-500/40 transition-all w-full text-lg mt-2">
                 Lanjut Pilih Aktivitas ➔
@@ -491,8 +498,9 @@
         // Logika Tombol "Lanjut Pilih Aktivitas" (Validasi Tanggal & Pindah ke Step Activity)
         btnNextActivity.addEventListener('click', () => {
             const dateValue = document.getElementById('date-picker').value;
+            const timeValue = document.getElementById('time-picker').value;
             
-            if (!dateValue) {
+            if (!dateValue || !timeValue) {
                 errorDate.classList.remove('hidden');
                 stepDate.classList.add('shake-animation');
                 setTimeout(() => stepDate.classList.remove('shake-animation'), 400);
@@ -517,6 +525,7 @@
         // Logika Tombol "Kirim Rencana" (Validasi Aktivitas & Pindah ke Step 3)
         btnConfirm.addEventListener('click', () => {
             const dateValue = document.getElementById('date-picker').value;
+            const timeValue = document.getElementById('time-picker').value;
             const checkedActivities = document.querySelectorAll('input[name="activity"]:checked');
             
             let selectedActivities = [];
@@ -601,6 +610,7 @@
                 const dateObj = new Date(dateValue);
                 const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
                 const formattedDate = dateObj.toLocaleDateString('id-ID', options);
+                const finalDateTime = `${formattedDate} - Jam ${timeValue}`;
                 
                 // Format aktivitas
                 const activitiesText = selectedActivities.join(', ');
@@ -612,13 +622,13 @@
                 // Contoh: Jika nomor 08123456789, tulis 628123456789
                 const nomorWA = "62895391843741"; 
                 
-                const pesanWA = `Halo sayang! %0A%0AAku udah isi rencana kita kayak gini:%0ATanggal: ${formattedDate}%0AAktivitas: ${activitiesText}`;
+                const pesanWA = `Halo sayang! %0A%0AAku udah isi rencana kita kayak gini:%0AWaktu: ${finalDateTime}%0AAktivitas: ${activitiesText}`;
                 
                 finalWaUrl = `https://wa.me/${nomorWA}?text=${pesanWA}`;
                 
                 // Masukkan hasil ke halaman sukses (Step 3)
                 finalSummary.innerHTML = `
-                    <div class="mb-2">📅 <span class="font-bold text-pink-600">${formattedDate}</span></div>
+                    <div class="mb-2">📅 <span class="font-bold text-pink-600">${finalDateTime}</span></div>
                     <div>🎡 <span class="font-bold text-pink-600">${activitiesText}</span></div>
                 `;
 
